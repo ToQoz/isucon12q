@@ -35,7 +35,7 @@ CREATE TABLE player_score (
 
 CREATE TABLE ranking (
     competition_id VARCHAR(255) NOT NULL,
-    rank BIGINT NOT NULL,
+    ranking BIGINT NOT NULL,
     score BIGINT NOT NULL,
     player_id VARCHAR(255) NOT NULL,
     player_display_name TEXT NOT NULL,
