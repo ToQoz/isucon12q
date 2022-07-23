@@ -226,7 +226,7 @@ func main() {
 		e.Logger.Fatalf("failed to connect db: %v", err)
 		return
 	}
-	adminDB.SetMaxOpenConns(40)
+	adminDB.SetMaxOpenConns(20)
 	defer adminDB.Close()
 
 	port := getEnv("SERVER_APP_PORT", "3000")
@@ -1791,6 +1791,7 @@ func initializeHandler(c echo.Context) error {
 			go generateRanking(ctx, tenantDB, t.ID, c.ID)
 		}
 	}
+	time.Sleep(time.Second * 2)
 
 	res := InitializeHandlerResult{
 		Lang: "go",
