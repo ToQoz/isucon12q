@@ -1684,30 +1684,30 @@ func initializeHandler(c echo.Context) error {
 			return fmt.Errorf("failed to add player_count: %w", err)
 		}
 
-		cs := []CompetitionRow{}
-		if err := tenantDB.SelectContext(
-			ctx,
-			&cs,
-			"SELECT * FROM competition WHERE tenant_id=?",
-			t.ID,
-		); err != nil {
-			return fmt.Errorf("failed to Select competition: %w", err)
-		}
-		for _, comp := range cs {
-			visitorCount, playerCount, err := calculate(ctx, tenantDB, comp.FinishedAt.Int64, t.ID, &comp)
-			if err != nil {
-				return fmt.Errorf("failed to caluculate visitorCount and playerCount: %w", err)
-			}
-			if _, err := tenantDB.ExecContext(
-				ctx,
-				"UPDATE competition SET visitor_count = ?, player_count = ? WHERE id = ?",
-				visitorCount, playerCount, comp.ID,
-			); err != nil {
-				return fmt.Errorf(
-					"error Update competition: fid=%s, %w", comp.ID, err,
-				)
-			}
-		}
+		//cs := []CompetitionRow{}
+		//if err := tenantDB.SelectContext(
+		//	ctx,
+		//	&cs,
+		//	"SELECT * FROM competition WHERE tenant_id=?",
+		//	t.ID,
+		//); err != nil {
+		//	return fmt.Errorf("failed to Select competition: %w", err)
+		//}
+		//for _, comp := range cs {
+		//	visitorCount, playerCount, err := calculate(ctx, tenantDB, comp.FinishedAt.Int64, t.ID, &comp)
+		//	if err != nil {
+		//		return fmt.Errorf("failed to caluculate visitorCount and playerCount: %w", err)
+		//	}
+		//	if _, err := tenantDB.ExecContext(
+		//		ctx,
+		//		"UPDATE competition SET visitor_count = ?, player_count = ? WHERE id = ?",
+		//		visitorCount, playerCount, comp.ID,
+		//	); err != nil {
+		//		return fmt.Errorf(
+		//			"error Update competition: fid=%s, %w", comp.ID, err,
+		//		)
+		//	}
+		//}
 
 	}
 
