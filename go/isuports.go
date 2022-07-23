@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -411,12 +412,20 @@ type PlayerRow struct {
 	UpdatedAt      int64  `db:"updated_at"`
 }
 
+var playerMap sync.Map
+
 // 参加者を取得する
 func retrievePlayer(ctx context.Context, tenantDB dbOrTx, id string) (*PlayerRow, error) {
 	var p PlayerRow
+
+	player, ok := playerMap.Load(id)
+	if ok {
+		return (player).(*PlayerRow), nil
+	}
 	if err := tenantDB.GetContext(ctx, &p, "SELECT * FROM player WHERE id = ?", id); err != nil {
 		return nil, fmt.Errorf("error Select player: id=%s, %w", id, err)
 	}
+	playerMap.Store(id, &p)
 	return &p, nil
 }
 
@@ -889,6 +898,7 @@ func playerDisqualifiedHandler(c echo.Context) error {
 			true, now, playerID, err,
 		)
 	}
+
 	p, err := retrievePlayer(ctx, tenantDB, playerID)
 	if err != nil {
 		// 存在しないプレイヤー
@@ -896,6 +906,11 @@ func playerDisqualifiedHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusNotFound, "player not found")
 		}
 		return fmt.Errorf("error retrievePlayer: %w", err)
+	}
+
+	_, ok := playerMap.Load(playerID)
+	if ok {
+		playerMap.Delete(playerID)
 	}
 
 	res := PlayerDisqualifiedHandlerResult{
