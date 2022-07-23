@@ -1257,6 +1257,7 @@ func billingHandler(c echo.Context) error {
 }
 
 type PlayerScoreDetail struct {
+	compeditionId    string
 	CompetitionTitle string `json:"competition_title"`
 	Score            int64  `json:"score"`
 }
@@ -1317,38 +1318,28 @@ func playerHandler(c echo.Context) error {
 		return fmt.Errorf("error flockByTenantID: %w", err)
 	}
 	defer fl.Close()
-	pss := make([]RankingRow, 0, len(cs))
-	for _, c := range cs {
-		ps := RankingRow{}
-		// TODO: batch-get
-		// TODO: player_score_latest
-		if err := tenantDB.GetContext(
-			ctx,
-			&ps,
-			// 最後にCSVに登場したスコアを採用する = row_numが一番大きいもの
-			"SELECT * FROM ranking WHERE competition_id = ? AND player_id = ?",
-			c.ID,
-			p.ID,
-		); err != nil {
-			// 行がない = スコアが記録されてない
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			return fmt.Errorf("error Select player_score: tenantID=%d, competitionID=%s, playerID=%s, %w", v.tenantID, c.ID, p.ID, err)
-		}
-		pss = append(pss, ps)
+	var pss []RankingRow
+	psds := make([]PlayerScoreDetail, 0, len(cs))
+
+	if err := tenantDB.SelectContext(
+		ctx,
+		&pss,
+		"SELECT * FROM ranking WHERE player_id = ?",
+		p.ID,
+	); err != nil {
+		return fmt.Errorf("error Select player_score: tenantID=%d,  playerID=%s, %w", v.tenantID, p.ID, err)
 	}
 
-	psds := make([]PlayerScoreDetail, 0, len(pss))
-	for _, ps := range pss {
-		comp, err := retrieveCompetition(ctx, tenantDB, ps.CompetitionID)
-		if err != nil {
-			return fmt.Errorf("error retrieveCompetition: %w", err)
+	for _, c := range cs {
+		for _, p := range psds {
+			if p.compeditionId == c.ID {
+				psds = append(psds, PlayerScoreDetail{
+					CompetitionTitle: c.Title,
+					Score:            p.Score,
+				})
+				break
+			}
 		}
-		psds = append(psds, PlayerScoreDetail{
-			CompetitionTitle: comp.Title,
-			Score:            ps.Score,
-		})
 	}
 
 	res := SuccessResult{
