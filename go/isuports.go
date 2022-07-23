@@ -1257,7 +1257,6 @@ func billingHandler(c echo.Context) error {
 }
 
 type PlayerScoreDetail struct {
-	compeditionId    string
 	CompetitionTitle string `json:"competition_title"`
 	Score            int64  `json:"score"`
 }
@@ -1331,8 +1330,8 @@ func playerHandler(c echo.Context) error {
 	}
 
 	for _, c := range cs {
-		for _, p := range psds {
-			if p.compeditionId == c.ID {
+		for _, p := range pss {
+			if p.CompetitionID == c.ID {
 				psds = append(psds, PlayerScoreDetail{
 					CompetitionTitle: c.Title,
 					Score:            p.Score,
