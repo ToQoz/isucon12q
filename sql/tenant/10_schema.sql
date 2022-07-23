@@ -39,6 +39,7 @@ CREATE TABLE ranking (
     score BIGINT NOT NULL,
     player_id VARCHAR(255) NOT NULL,
     player_display_name TEXT NOT NULL,
-    PRIMARY KEY (competition_id, ranking),
-    KEY (player_id)
+    PRIMARY KEY (competition_id, ranking)
 );
+
+CREATE INDEX r_player_id_idx ON ranking (player_id);

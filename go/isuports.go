@@ -1745,8 +1745,11 @@ func initializeHandler(c echo.Context) error {
 			player_id VARCHAR(255) NOT NULL,
 			player_display_name TEXT NOT NULL,
 			PRIMARY KEY(competition_id, ranking),
-			KEY (player_id)
 		);`)
+		if err != nil {
+			return fmt.Errorf("failed to create ranking: %w", err)
+		}
+		_, err = tenantDB.ExecContext(ctx, `CREATE INDEX r_player_id_idx ON ranking (player_id);`)
 		if err != nil {
 			return fmt.Errorf("failed to create ranking: %w", err)
 		}
