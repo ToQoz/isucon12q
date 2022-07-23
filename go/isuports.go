@@ -791,6 +791,7 @@ func playersAddHandler(c echo.Context) error {
 	}
 	displayNames := params["display_name[]"]
 
+	// TODO: batch-insert
 	pds := make([]PlayerDetail, 0, len(displayNames))
 	for _, displayName := range displayNames {
 		id, err := dispenseID(ctx)
@@ -1063,6 +1064,7 @@ func competitionScoreHandler(c echo.Context) error {
 		if len(row) != 2 {
 			return fmt.Errorf("row must have two columns: %#v", row)
 		}
+		// TODO: batch-get
 		playerID, scoreStr := row[0], row[1]
 		if _, err := retrievePlayer(ctx, tenantDB, playerID); err != nil {
 			// 存在しない参加者が含まれている
@@ -1107,6 +1109,7 @@ func competitionScoreHandler(c echo.Context) error {
 		return fmt.Errorf("error Delete player_score: tenantID=%d, competitionID=%s, %w", v.tenantID, competitionID, err)
 	}
 	for _, ps := range playerScoreRows {
+		// TODO: batch-insert
 		if _, err := tenantDB.NamedExecContext(
 			ctx,
 			"INSERT INTO player_score (id, tenant_id, player_id, competition_id, score, row_num, created_at, updated_at) VALUES (:id, :tenant_id, :player_id, :competition_id, :score, :row_num, :created_at, :updated_at)",
@@ -1240,6 +1243,8 @@ func playerHandler(c echo.Context) error {
 	pss := make([]PlayerScoreRow, 0, len(cs))
 	for _, c := range cs {
 		ps := PlayerScoreRow{}
+		// TODO: batch-get
+		// TODO: player_score_latest
 		if err := tenantDB.GetContext(
 			ctx,
 			&ps,
@@ -1325,6 +1330,9 @@ func competitionRankingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "competition_id is required")
 	}
 
+	// ID:         competition.ID,
+	// Title:      competition.Title,
+	// IsFinished: competition.FinishedAt.Valid,
 	// 大会の存在確認
 	competition, err := retrieveCompetition(ctx, tenantDB, competitionID)
 	if err != nil {
@@ -1384,6 +1392,7 @@ func competitionRankingHandler(c echo.Context) error {
 			continue
 		}
 		scoredPlayerSet[ps.PlayerID] = struct{}{}
+		// TODO: batch-get
 		p, err := retrievePlayer(ctx, tenantDB, ps.PlayerID)
 		if err != nil {
 			return fmt.Errorf("error retrievePlayer: %w", err)
@@ -1395,12 +1404,14 @@ func competitionRankingHandler(c echo.Context) error {
 			RowNum:            ps.RowNum,
 		})
 	}
+	// 同一スコアの場合は古いほうが優先
 	sort.Slice(ranks, func(i, j int) bool {
 		if ranks[i].Score == ranks[j].Score {
 			return ranks[i].RowNum < ranks[j].RowNum
 		}
 		return ranks[i].Score > ranks[j].Score
 	})
+	// TODO: paging
 	pagedRanks := make([]CompetitionRank, 0, 100)
 	for i, rank := range ranks {
 		if int64(i) < rankAfter {
