@@ -1754,6 +1754,19 @@ func initializeHandler(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create ranking: %w", err)
 		}
+
+		cs := []CompetitionRow{}
+		if err := tenantDB.SelectContext(
+			ctx,
+			&cs,
+			"SELECT * FROM competition WHERE tenant_id=?",
+			t.ID,
+		); err != nil {
+			return fmt.Errorf("failed to Select competition: %w", err)
+		}
+		for _, c := range cs {
+			go generateRanking(ctx, tenantDB, t.ID, c.ID)
+		}
 	}
 
 	res := InitializeHandlerResult{
