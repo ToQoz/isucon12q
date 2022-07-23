@@ -571,6 +571,34 @@ func billingReportByCompetition(ctx context.Context, tenantDB dbOrTx, tenantID i
 	if err != nil {
 		return nil, fmt.Errorf("error retrieveCompetition: %w", err)
 	}
+
+	if comp.FinishedAt.Valid && comp.VisitorCount == 0 && comp.PlayerCount == 0 {
+		visitorCount, playerCount, err := calculate(ctx, tenantDB, comp.FinishedAt.Int64, tenantID, comp)
+		if err != nil {
+			return nil, fmt.Errorf("error calculate: %w", err)
+		}
+
+		if _, err := tenantDB.ExecContext(
+			ctx,
+			"UPDATE competition SET visitor_count = ?, player_count = ? WHERE id = ?",
+			visitorCount, playerCount, comp.ID,
+		); err != nil {
+			return nil, fmt.Errorf(
+				"error Update competition: id=%s, %w",
+				comp.ID, err,
+			)
+		}
+		return &BillingReport{
+			CompetitionID:     comp.ID,
+			CompetitionTitle:  comp.Title,
+			PlayerCount:       playerCount,
+			VisitorCount:      visitorCount,
+			BillingPlayerYen:  100 * playerCount, // スコアを登録した参加者は100円
+			BillingVisitorYen: 10 * visitorCount, // ランキングを閲覧だけした(スコアを登録していない)参加者は10円
+			BillingYen:        100*playerCount + 10*visitorCount,
+		}, nil
+	}
+
 	return &BillingReport{
 		CompetitionID:     comp.ID,
 		CompetitionTitle:  comp.Title,
@@ -1683,32 +1711,6 @@ func initializeHandler(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to add player_count: %w", err)
 		}
-
-		//cs := []CompetitionRow{}
-		//if err := tenantDB.SelectContext(
-		//	ctx,
-		//	&cs,
-		//	"SELECT * FROM competition WHERE tenant_id=?",
-		//	t.ID,
-		//); err != nil {
-		//	return fmt.Errorf("failed to Select competition: %w", err)
-		//}
-		//for _, comp := range cs {
-		//	visitorCount, playerCount, err := calculate(ctx, tenantDB, comp.FinishedAt.Int64, t.ID, &comp)
-		//	if err != nil {
-		//		return fmt.Errorf("failed to caluculate visitorCount and playerCount: %w", err)
-		//	}
-		//	if _, err := tenantDB.ExecContext(
-		//		ctx,
-		//		"UPDATE competition SET visitor_count = ?, player_count = ? WHERE id = ?",
-		//		visitorCount, playerCount, comp.ID,
-		//	); err != nil {
-		//		return fmt.Errorf(
-		//			"error Update competition: fid=%s, %w", comp.ID, err,
-		//		)
-		//	}
-		//}
-
 	}
 
 	res := InitializeHandlerResult{
