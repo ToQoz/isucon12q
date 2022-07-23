@@ -10,13 +10,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,12 +170,6 @@ func SetCacheControlPrivate(next echo.HandlerFunc) echo.HandlerFunc {
 
 // Run は cmd/isuports/main.go から呼ばれるエントリーポイントです
 func main() {
-	runtime.SetBlockProfileRate(1)
-	runtime.SetMutexProfileFraction(1)
-	go func() {
-		log.Print(http.ListenAndServe("0.0.0.0:6060", nil), "\n")
-	}()
-
 	e := echo.New()
 	e.Debug = false
 	e.Logger.SetLevel(log.OFF)
