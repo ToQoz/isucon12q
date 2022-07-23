@@ -38,6 +38,6 @@ CREATE TABLE ranking (
     rank BIGINT NOT NULL,
     score BIGINT NOT NULL,
     player_id VARCHAR(255) NOT NULL,
-    player_display_name TEXt NOT NULL),
+    player_display_name TEXT NOT NULL,
     PRIMARY KEY (competition_id, ranking)
 );
