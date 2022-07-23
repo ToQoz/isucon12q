@@ -16,11 +16,11 @@ sudo mv /var/log/nginx/access.log /var/log/nginx/access.log.`date +%Y%m%d-%H%M%S
 sudo mv /var/log/mysql/slow.log /var/log/mysql/slow.log.`date +%Y%m%d-%H%M%S` || true
 
 # Restart middlewares
-systemctl restart nginx
-systemctl restart mysql
+sudo systemctl restart nginx
+sudo systemctl restart mysql
 
 # Restart app
-(cd go && go build -v -o isuports *.go)
-systemctl restart isuports
+(cd go && go build -o isuports ./cmd/isuports)
+sudo systemctl restart isuports
 
 echo "(deploy.sh) Done" | slackcat --tee
