@@ -1,4 +1,4 @@
-package isuports
+package main
 
 import (
 	"context"
@@ -152,7 +152,7 @@ func SetCacheControlPrivate(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // Run は cmd/isuports/main.go から呼ばれるエントリーポイントです
-func Run() {
+func main() {
 	runtime.SetBlockProfileRate(1)
 	runtime.SetMutexProfileFraction(1)
 	go func() {

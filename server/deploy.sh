@@ -20,7 +20,7 @@ sudo systemctl restart nginx
 sudo systemctl restart mysql
 
 echo "Restart app"
-(cd go && go build -o isuports ./cmd/isuports)
+(cd go && go build -o isuports .)
 sudo systemctl restart isuports
 
 journalctl -u isuports -e | tail -n 15
