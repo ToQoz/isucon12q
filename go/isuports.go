@@ -888,6 +888,7 @@ func playerDisqualifiedHandler(c echo.Context) error {
 	playerID := c.Param("player_id")
 
 	now := time.Now().Unix()
+
 	if _, err := tenantDB.ExecContext(
 		ctx,
 		"UPDATE player SET is_disqualified = ?, updated_at = ? WHERE id = ?",
@@ -907,11 +908,7 @@ func playerDisqualifiedHandler(c echo.Context) error {
 		}
 		return fmt.Errorf("error retrievePlayer: %w", err)
 	}
-
-	_, ok := playerMap.Load(playerID)
-	if ok {
-		playerMap.Delete(playerID)
-	}
+	playerMap.Store(playerID, p)
 
 	res := PlayerDisqualifiedHandlerResult{
 		Player: PlayerDetail{
