@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/goccy/go-json"
 	"github.com/gofrs/flock"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -88,6 +90,22 @@ func connectToTenantDB(id int64) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("failed to open tenant DB: %w", err)
 	}
 	return db, nil
+}
+
+func responseJSON(c echo.Context, status int, v interface{}) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return c.JSONBlob(status, b)
+}
+
+func bindJSON(c echo.Context, i interface{}) error {
+	b, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, i)
 }
 
 // テナントDBを新規に作成する
@@ -234,7 +252,7 @@ func errorResponseHandler(err error, c echo.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusInternalServerError, FailureResult{
+	responseJSON(c, http.StatusInternalServerError, FailureResult{
 		Status: false,
 	})
 }
@@ -539,7 +557,7 @@ func tenantsAddHandler(c echo.Context) error {
 			BillingYen:  0,
 		},
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
 
 // テナント名が規則に沿っているかチェックする
@@ -712,7 +730,7 @@ func tenantsBillingHandler(c echo.Context) error {
 			break
 		}
 	}
-	return c.JSON(http.StatusOK, SuccessResult{
+	return responseJSON(c, http.StatusOK, SuccessResult{
 		Status: true,
 		Data: TenantsBillingHandlerResult{
 			Tenants: tenantBillings,
@@ -769,7 +787,7 @@ func playersListHandler(c echo.Context) error {
 	res := PlayersListHandlerResult{
 		Players: pds,
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
 
 type PlayersAddHandlerResult struct {
@@ -833,7 +851,7 @@ func playersAddHandler(c echo.Context) error {
 	res := PlayersAddHandlerResult{
 		Players: pds,
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
 
 type PlayerDisqualifiedHandlerResult struct {
@@ -887,7 +905,7 @@ func playerDisqualifiedHandler(c echo.Context) error {
 			IsDisqualified: p.IsDisqualified,
 		},
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
 
 type CompetitionDetail struct {
@@ -943,7 +961,7 @@ func competitionsAddHandler(c echo.Context) error {
 			IsFinished: false,
 		},
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
 
 func calculate(ctx context.Context, tenantDB dbOrTx, finishedAt int64, tenantID int64, comp *CompetitionRow) (int64, int64, error) {
@@ -1052,7 +1070,7 @@ func competitionFinishHandler(c echo.Context) error {
 		)
 	}
 
-	return c.JSON(http.StatusOK, SuccessResult{Status: true})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true})
 }
 
 type ScoreHandlerResult struct {
@@ -1095,7 +1113,7 @@ func competitionScoreHandler(c echo.Context) error {
 			Status:  false,
 			Message: "competition is finished",
 		}
-		return c.JSON(http.StatusBadRequest, res)
+		return responseJSON(c, http.StatusBadRequest, res)
 	}
 
 	fh, err := c.FormFile("scores")
@@ -1201,7 +1219,7 @@ func competitionScoreHandler(c echo.Context) error {
 		return fmt.Errorf("error: generateRanking")
 	}
 
-	return c.JSON(http.StatusOK, SuccessResult{
+	return responseJSON(c, http.StatusOK, SuccessResult{
 		Status: true,
 		Data:   ScoreHandlerResult{Rows: int64(len(playerScoreRows))},
 	})
@@ -1254,7 +1272,7 @@ func billingHandler(c echo.Context) error {
 			Reports: tbrs,
 		},
 	}
-	return c.JSON(http.StatusOK, res)
+	return responseJSON(c, http.StatusOK, res)
 }
 
 type PlayerScoreDetail struct {
@@ -1353,7 +1371,7 @@ func playerHandler(c echo.Context) error {
 			Scores: psds,
 		},
 	}
-	return c.JSON(http.StatusOK, res)
+	return responseJSON(c, http.StatusOK, res)
 }
 
 type CompetitionRank struct {
@@ -1532,7 +1550,7 @@ func competitionRankingHandler(c echo.Context) error {
 			Ranks: pagedRanks,
 		},
 	}
-	return c.JSON(http.StatusOK, res)
+	return responseJSON(c, http.StatusOK, res)
 }
 
 type CompetitionsHandlerResult struct {
@@ -1613,7 +1631,7 @@ func competitionsHandler(c echo.Context, v *Viewer, tenantDB dbOrTx) error {
 			Competitions: cds,
 		},
 	}
-	return c.JSON(http.StatusOK, res)
+	return responseJSON(c, http.StatusOK, res)
 }
 
 type TenantDetail struct {
@@ -1644,7 +1662,7 @@ func meHandler(c echo.Context) error {
 	if err != nil {
 		var he *echo.HTTPError
 		if ok := errors.As(err, &he); ok && he.Code == http.StatusUnauthorized {
-			return c.JSON(http.StatusOK, SuccessResult{
+			return responseJSON(c, http.StatusOK, SuccessResult{
 				Status: true,
 				Data: MeHandlerResult{
 					Tenant:   td,
@@ -1657,7 +1675,7 @@ func meHandler(c echo.Context) error {
 		return fmt.Errorf("error parseViewer: %w", err)
 	}
 	if v.role == RoleAdmin || v.role == RoleOrganizer {
-		return c.JSON(http.StatusOK, SuccessResult{
+		return responseJSON(c, http.StatusOK, SuccessResult{
 			Status: true,
 			Data: MeHandlerResult{
 				Tenant:   td,
@@ -1676,7 +1694,7 @@ func meHandler(c echo.Context) error {
 	p, err := retrievePlayer(ctx, tenantDB, v.playerID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.JSON(http.StatusOK, SuccessResult{
+			return responseJSON(c, http.StatusOK, SuccessResult{
 				Status: true,
 				Data: MeHandlerResult{
 					Tenant:   td,
@@ -1689,7 +1707,7 @@ func meHandler(c echo.Context) error {
 		return fmt.Errorf("error retrievePlayer: %w", err)
 	}
 
-	return c.JSON(http.StatusOK, SuccessResult{
+	return responseJSON(c, http.StatusOK, SuccessResult{
 		Status: true,
 		Data: MeHandlerResult{
 			Tenant: td,
@@ -1772,5 +1790,5 @@ func initializeHandler(c echo.Context) error {
 	res := InitializeHandlerResult{
 		Lang: "go",
 	}
-	return c.JSON(http.StatusOK, SuccessResult{Status: true, Data: res})
+	return responseJSON(c, http.StatusOK, SuccessResult{Status: true, Data: res})
 }
