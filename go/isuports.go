@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -28,6 +28,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/rs/xid"
 )
 
 const (
@@ -98,20 +99,23 @@ func createTenantDB(id int64) error {
 	return nil
 }
 
-const hostNum = 1
+// const hostNum = 1
 
-var dispenseIDCounter int32 = hostNum
-var dispenseIDCounterMutex sync.Mutex
+// var dispenseIDCounter int32 = hostNum
+// var dispenseIDCounterMutex sync.Mutex
 
 // システム全体で一意なIDを生成する
 func dispenseID(ctx context.Context) (string, error) {
-	// HOST num * counter すれば良い
+	guid := xid.New()
+	return hex.EncodeToString(guid.Bytes()), nil
 
-	dispenseIDCounterMutex.Lock()
-	defer dispenseIDCounterMutex.Unlock()
-	dispenseIDCounter += 3
-
-	return fmt.Sprintf("%x", dispenseIDCounter), nil
+	//// HOST num * counter すれば良い
+	//
+	//dispenseIDCounterMutex.Lock()
+	//defer dispenseIDCounterMutex.Unlock()
+	//dispenseIDCounter += 3
+	//
+	//return fmt.Sprintf("%x", dispenseIDCounter), nil
 	//
 	//var id int64
 	//var lastErr error
