@@ -1674,6 +1674,16 @@ func initializeHandler(c echo.Context) error {
 			return fmt.Errorf("failed to connectToTenantDB: %w", err)
 		}
 		defer tenantDB.Close()
+
+		_, err = tenantDB.ExecContext(ctx, "ALTER TABLE competition ADD COLUMN visitor_count BIGINT DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("failed to add visitor_count: %w", err)
+		}
+		_, err = tenantDB.ExecContext(ctx, "ALTER TABLE competition ADD COLUMN player_count BIGINT DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("failed to add player_count: %w", err)
+		}
+
 		cs := []CompetitionRow{}
 		if err := tenantDB.SelectContext(
 			ctx,
