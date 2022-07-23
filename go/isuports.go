@@ -1501,15 +1501,15 @@ func competitionRankingHandler(c echo.Context) error {
 	if err := tenantDB.SelectContext(ctx, &rankings, "SELECT * FROM ranking WHERE competition_id = ? AND ranking > ? LIMIT 100", competitionID, rankAfter); err != nil {
 		return fmt.Errorf("error select ranking: %s: %w", competitionID, err)
 	}
-	if len(rankings) == 0 {
-		err = generateRanking(ctx, tenantDB, v.tenantID, competitionID)
-		if err != nil {
-			return fmt.Errorf("error: generateRanking")
-		}
-		if err := tenantDB.SelectContext(ctx, &rankings, "SELECT * FROM ranking WHERE competition_id = ? AND ranking > ?", competitionID, rankAfter); err != nil {
-			return fmt.Errorf("error select ranking: %s: %w", competitionID, err)
-		}
-	}
+	//if len(rankings) == 0 {
+	//	err = generateRanking(ctx, tenantDB, v.tenantID, competitionID)
+	//	if err != nil {
+	//		return fmt.Errorf("error: generateRanking")
+	//	}
+	//	if err := tenantDB.SelectContext(ctx, &rankings, "SELECT * FROM ranking WHERE competition_id = ? AND ranking > ?", competitionID, rankAfter); err != nil {
+	//		return fmt.Errorf("error select ranking: %s: %w", competitionID, err)
+	//	}
+	//}
 
 	pagedRanks := make([]CompetitionRank, 0, len(rankings))
 	for i, rank := range rankings {
