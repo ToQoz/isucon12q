@@ -1690,7 +1690,7 @@ func initializeHandler(c echo.Context) error {
 			}
 			if _, err := tenantDB.ExecContext(
 				ctx,
-				"UPDATE competition SET, visitor_count = ?, player_count = ? WHERE id = ?",
+				"UPDATE competition SET visitor_count = ?, player_count = ? WHERE id = ?",
 				visitorCount, playerCount, comp.ID,
 			); err != nil {
 				return fmt.Errorf(
