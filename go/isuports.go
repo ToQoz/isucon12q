@@ -18,7 +18,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -404,22 +403,22 @@ type PlayerRow struct {
 	UpdatedAt      int64  `db:"updated_at"`
 }
 
-var playerMap sync.Map
+//var playerMap sync.Map
 
 // 参加者を取得する
 func retrievePlayer(ctx context.Context, tenantDB dbOrTx, id string, noCache bool) (*PlayerRow, error) {
 	var p PlayerRow
 
-	if !noCache {
-		player, ok := playerMap.Load(id)
-		if ok {
-			return (player).(*PlayerRow), nil
-		}
-	}
+	//if !noCache {
+	//	player, ok := playerMap.Load(id)
+	//	if ok {
+	//		return (player).(*PlayerRow), nil
+	//	}
+	//}
 	if err := tenantDB.GetContext(ctx, &p, "SELECT * FROM player WHERE id = ?", id); err != nil {
 		return nil, fmt.Errorf("error Select player: id=%s, %w", id, err)
 	}
-	playerMap.Store(id, &p)
+	//playerMap.Store(id, &p)
 	return &p, nil
 }
 
