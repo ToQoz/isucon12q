@@ -23,4 +23,6 @@ echo "Restart app"
 (cd go && go build -o isuports ./cmd/isuports)
 sudo systemctl restart isuports
 
+journalctl -u isuports -e | tail -n 15
+
 echo "(deploy.sh) Done" | slackcat --tee
