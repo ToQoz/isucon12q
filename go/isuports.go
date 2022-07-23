@@ -1753,14 +1753,13 @@ func initializeHandler(c echo.Context) error {
 			return fmt.Errorf("failed to add player_count: %w", err)
 		}
 		_, err = tenantDB.ExecContext(ctx, `CREATE TABLE ranking (
-    competition_id VARCHAR(255) NOT NULL,
-    ranking BIGINT NOT NULL,
-    score BIGINT NOT NULL,
-    player_id VARCHAR(255) NOT NULL,
-    player_display_name TEXt NOT NULL,
-     PRIMARY KEY(competition_id, ranking)
-    )
-);`)
+			competition_id VARCHAR(255) NOT NULL,
+			ranking BIGINT NOT NULL,
+			score BIGINT NOT NULL,
+			player_id VARCHAR(255) NOT NULL,
+			player_display_name TEXT NOT NULL,
+			PRIMARY KEY(competition_id, ranking)
+		);`)
 		if err != nil {
 			return fmt.Errorf("failed to create ranking: %w", err)
 		}
