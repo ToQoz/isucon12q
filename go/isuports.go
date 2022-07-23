@@ -1317,17 +1317,16 @@ func playerHandler(c echo.Context) error {
 		return fmt.Errorf("error flockByTenantID: %w", err)
 	}
 	defer fl.Close()
-	pss := make([]PlayerScoreRow, 0, len(cs))
+	pss := make([]RankingRow, 0, len(cs))
 	for _, c := range cs {
-		ps := PlayerScoreRow{}
+		ps := RankingRow{}
 		// TODO: batch-get
 		// TODO: player_score_latest
 		if err := tenantDB.GetContext(
 			ctx,
 			&ps,
 			// 最後にCSVに登場したスコアを採用する = row_numが一番大きいもの
-			"SELECT * FROM player_score WHERE tenant_id = ? AND competition_id = ? AND player_id = ? ORDER BY row_num DESC LIMIT 1",
-			v.tenantID,
+			"SELECT * FROM ranking WHERE competition_id = ? AND player_id = ?",
 			c.ID,
 			p.ID,
 		); err != nil {
