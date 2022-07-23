@@ -449,6 +449,14 @@ type PlayerScoreRow struct {
 	UpdatedAt     int64  `db:"updated_at"`
 }
 
+type RankingRow struct {
+	PlayerID          string `db:"player_id"`
+	CompetitionID     string `db:"competition_id"`
+	PlayerDisplayName string `db:"player_display_name"`
+	Score             int64  `db:"score"`
+	Ranking           int64  `db:"ranking"`
+}
+
 // 排他ロックのためのファイル名を生成する
 func lockFilePath(id int64) string {
 	tenantDBDir := getEnv("ISUCON_TENANT_DB_DIR", "../tenant_db")
@@ -1187,6 +1195,10 @@ func competitionScoreHandler(c echo.Context) error {
 
 		}
 	}
+	err = generateRanking(ctx, tenantDB, v.tenantID, competitionID)
+	if err != nil {
+		return fmt.Errorf("error: generateRanking")
+	}
 
 	return c.JSON(http.StatusOK, SuccessResult{
 		Status: true,
@@ -1367,6 +1379,62 @@ type CompetitionRankingHandlerResult struct {
 	Ranks       []CompetitionRank `json:"ranks"`
 }
 
+func generateRanking(ctx context.Context, tenantDB dbOrTx, tenantID int64, competitionID string) error {
+	pss := []PlayerScoreRow{}
+	if err := tenantDB.SelectContext(
+		ctx,
+		&pss,
+		"SELECT * FROM player_score WHERE tenant_id = ? AND competition_id = ? ORDER BY row_num DESC",
+		tenantID,
+		competitionID,
+	); err != nil {
+		return fmt.Errorf("error Select player_score: tenantID=%d, competitionID=%s, %w", tenantID, competitionID, err)
+	}
+	ranks := make([]CompetitionRank, 0, len(pss))
+	scoredPlayerSet := make(map[string]struct{}, len(pss))
+	for _, ps := range pss {
+		// player_scoreが同一player_id内ではrow_numの降順でソートされているので
+		// 現れたのが2回目以降のplayer_idはより大きいrow_numでスコアが出ているとみなせる
+		if _, ok := scoredPlayerSet[ps.PlayerID]; ok {
+			continue
+		}
+		scoredPlayerSet[ps.PlayerID] = struct{}{}
+		// TODO: batch-get
+		p, err := retrievePlayer(ctx, tenantDB, ps.PlayerID)
+		if err != nil {
+			return fmt.Errorf("error retrievePlayer: %w", err)
+		}
+		ranks = append(ranks, CompetitionRank{
+			Score:             ps.Score,
+			PlayerID:          p.ID,
+			PlayerDisplayName: p.DisplayName,
+			RowNum:            ps.RowNum,
+		})
+	}
+	// 同一スコアの場合は古いほうが優先
+	sort.Slice(ranks, func(i, j int) bool {
+		if ranks[i].Score == ranks[j].Score {
+			return ranks[i].RowNum < ranks[j].RowNum
+		}
+		return ranks[i].Score > ranks[j].Score
+	})
+
+	valuesString := []string{}
+	values := []interface{}{}
+
+	for i, rank := range ranks {
+		values = append(values, competitionID, int64(i+1), rank.Score, rank.PlayerID, rank.PlayerDisplayName)
+		valuesString = append(valuesString, "(?, ?, ?, ?, ?)")
+	}
+
+	_, err := tenantDB.ExecContext(ctx, "DELETE FROM ranking WHERE competition_id = ?", competitionID)
+	if err != nil {
+		return fmt.Errorf("error deleteRanking: %w", err)
+	}
+	_, err = tenantDB.ExecContext(ctx, "INSERT INTO ranking (competition_id, ranking, score, player_id, player_display_name) VALUES "+strings.Join(valuesString, ", "), values...)
+	return err
+}
+
 // 参加者向けAPI
 // GET /api/player/competition/:competition_id/ranking
 // 大会ごとのランキングを取得する
@@ -1438,47 +1506,23 @@ func competitionRankingHandler(c echo.Context) error {
 		return fmt.Errorf("error flockByTenantID: %w", err)
 	}
 	defer fl.Close()
-	pss := []PlayerScoreRow{}
-	if err := tenantDB.SelectContext(
-		ctx,
-		&pss,
-		"SELECT * FROM player_score WHERE tenant_id = ? AND competition_id = ? ORDER BY row_num DESC",
-		tenant.ID,
-		competitionID,
-	); err != nil {
-		return fmt.Errorf("error Select player_score: tenantID=%d, competitionID=%s, %w", tenant.ID, competitionID, err)
+
+	rankings := []RankingRow{}
+	if err := tenantDB.SelectContext(ctx, &rankings, "SELECT * FROM ranking WHERE competition_id = ? AND rank >= ? LIMIT 100", competitionID, rankAfter); err != nil {
+		return fmt.Errorf("error select ranking: %s: %w", competitionID, err)
 	}
-	ranks := make([]CompetitionRank, 0, len(pss))
-	scoredPlayerSet := make(map[string]struct{}, len(pss))
-	for _, ps := range pss {
-		// player_scoreが同一player_id内ではrow_numの降順でソートされているので
-		// 現れたのが2回目以降のplayer_idはより大きいrow_numでスコアが出ているとみなせる
-		if _, ok := scoredPlayerSet[ps.PlayerID]; ok {
-			continue
-		}
-		scoredPlayerSet[ps.PlayerID] = struct{}{}
-		// TODO: batch-get
-		p, err := retrievePlayer(ctx, tenantDB, ps.PlayerID)
+	if len(rankings) == 0 {
+		err = generateRanking(ctx, tenantDB, v.tenantID, competitionID)
 		if err != nil {
-			return fmt.Errorf("error retrievePlayer: %w", err)
+			return fmt.Errorf("error: generateRanking")
 		}
-		ranks = append(ranks, CompetitionRank{
-			Score:             ps.Score,
-			PlayerID:          p.ID,
-			PlayerDisplayName: p.DisplayName,
-			RowNum:            ps.RowNum,
-		})
+		if err := tenantDB.SelectContext(ctx, &rankings, "SELECT * FROM ranking WHERE competition_id = ? AND rank >= ?", competitionID, rankAfter); err != nil {
+			return fmt.Errorf("error select ranking: %s: %w", competitionID, err)
+		}
 	}
-	// 同一スコアの場合は古いほうが優先
-	sort.Slice(ranks, func(i, j int) bool {
-		if ranks[i].Score == ranks[j].Score {
-			return ranks[i].RowNum < ranks[j].RowNum
-		}
-		return ranks[i].Score > ranks[j].Score
-	})
-	// TODO: paging
-	pagedRanks := make([]CompetitionRank, 0, 100)
-	for i, rank := range ranks {
+
+	pagedRanks := make([]CompetitionRank, 0, len(rankings))
+	for i, rank := range rankings {
 		if int64(i) < rankAfter {
 			continue
 		}
@@ -1488,9 +1532,6 @@ func competitionRankingHandler(c echo.Context) error {
 			PlayerID:          rank.PlayerID,
 			PlayerDisplayName: rank.PlayerDisplayName,
 		})
-		if len(pagedRanks) >= 100 {
-			break
-		}
 	}
 
 	res := SuccessResult{
@@ -1710,6 +1751,18 @@ func initializeHandler(c echo.Context) error {
 		_, err = tenantDB.ExecContext(ctx, "ALTER TABLE competition ADD COLUMN player_count BIGINT DEFAULT 0")
 		if err != nil {
 			return fmt.Errorf("failed to add player_count: %w", err)
+		}
+		_, err = tenantDB.ExecContext(ctx, `CREATE TABLE ranking (
+    competition_id VARCHAR(255) NOT NULL,
+    ranking BIGINT NOT NULL,
+    score BIGINT NOT NULL,
+    player_id VARCHAR(255) NOT NULL,
+    player_display_name TEXt NOT NULL,
+     PRIMARY KEY(competition_id, ranking)
+    )
+);`)
+		if err != nil {
+			return fmt.Errorf("failed to create ranking: %w", err)
 		}
 	}
 

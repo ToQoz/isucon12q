@@ -32,3 +32,12 @@ CREATE TABLE player_score (
   created_at BIGINT NOT NULL,
   updated_at BIGINT NOT NULL
 );
+
+CREATE TABLE ranking (
+    competition_id VARCHAR(255) NOT NULL PRIMARY KEY,
+    rank BIGINT NOT NULL,
+    score BIGINT NOT NULL,
+    player_id VARCHAR(255) NOT NULL,
+    player_display_name TEXt NOT NULL),
+    PRIMARY KEY (competition_id, ranking)
+);
